@@ -1,89 +1,71 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import './ResultsTable.css';
 
+const buildMessageText = ({ email, linkedIn, followUp }) => {
+  return [
+    'EMAIL',
+    `Subject: ${email?.subject || 'N/A'}`,
+    email?.body || 'N/A',
+    '---',
+    'LINKEDIN',
+    linkedIn?.message || 'N/A',
+    '---',
+    'FOLLOW-UP',
+    `Subject: ${followUp?.subject || 'N/A'}`,
+    followUp?.body || 'N/A',
+  ].join('\n\n');
+};
+
 function ResultsTable({ results, onExport }) {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [pageSize, setPageSize] = useState(25);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [logoFailed, setLogoFailed] = useState(() => new Set());
+  const [messageViewer, setMessageViewer] = useState(null);
+  const [copyStatus, setCopyStatus] = useState('');
+  const closeButtonRef = useRef(null);
+  const dialogRef = useRef(null);
+  const lastActiveElementRef = useRef(null);
+
+  const closeViewer = useCallback(() => {
+    setMessageViewer(null);
+    setCopyStatus('');
+    const el = lastActiveElementRef.current;
+    if (el && typeof el.focus === 'function') {
+      el.focus();
+    }
+  }, []);
 
   useEffect(() => {
-    setLogoFailed(new Set());
-  }, [results]);
+    if (messageViewer) {
+      closeButtonRef.current?.focus();
+    }
+  }, [messageViewer]);
 
-  const getGradeColor = (grade) => {
-    if (grade.startsWith('A')) return '#4CAF50';
-    if (grade.startsWith('B')) return '#2196F3';
-    if (grade.startsWith('C')) return '#FF9800';
-    return '#f44336';
-  };
+  const handleDialogKeyDown = (e) => {
+    if (e.key === 'Escape') {
+      e.stopPropagation();
+      closeViewer();
+      return;
+    }
 
-  // Filter results based on search term
-  const filteredResults = useMemo(() => {
-    if (!results || results.length === 0) return [];
-    if (!searchTerm) return results;
-    
-    const lowerSearch = searchTerm.toLowerCase();
-    return results.filter(result => {
-      const companyName = result.company?.name?.toLowerCase() || '';
-      const companyDomain = result.company?.domain?.toLowerCase() || '';
-      const contactName = `${result.contact?.firstName || ''} ${result.contact?.lastName || ''}`.toLowerCase();
-      const contactTitle = result.contact?.title?.toLowerCase() || '';
-      
-      return companyName.includes(lowerSearch) ||
-             companyDomain.includes(lowerSearch) ||
-             contactName.includes(lowerSearch) ||
-             contactTitle.includes(lowerSearch);
-    });
-  }, [results, searchTerm]);
+    if (e.key !== 'Tab') return;
+    if (!dialogRef.current) return;
 
-  // Paginate filtered results
-  const totalPages = Math.max(1, Math.ceil(filteredResults.length / pageSize));
-  const safeCurrentPage = Math.min(currentPage, totalPages);
-  const startIndex = (safeCurrentPage - 1) * pageSize;
-  const endIndex = startIndex + pageSize;
-  const paginatedResults = filteredResults.slice(startIndex, endIndex);
+    const focusable = Array.from(
+      dialogRef.current.querySelectorAll(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+      )
+    ).filter((el) => !el.hasAttribute('disabled'));
 
-  // Reset to page 1 when search term or page size changes
-  const handleSearchChange = (e) => {
-    setSearchTerm(e.target.value);
-    setCurrentPage(1);
-  };
+    if (focusable.length === 0) return;
 
-  const handlePageSizeChange = (e) => {
-    setPageSize(Number(e.target.value));
-    setCurrentPage(1);
-  };
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
 
-  const goToPage = (page) => {
-    setCurrentPage(Math.max(1, Math.min(page, totalPages)));
-  };
-
-  const getCompanyInitials = (name) => {
-    if (!name) return '?';
-
-    const words = name
-      .trim()
-      .split(/\s+/)
-      .filter(Boolean);
-
-    if (words.length === 0) return '?';
-
-    return words
-      .map(word => word[0])
-      .join('')
-      .toUpperCase()
-      .slice(0, 2);
-  };
-
-  const markLogoFailed = (key) => {
-    if (!key) return;
-    setLogoFailed(prev => {
-      if (prev.has(key)) return prev;
-      const next = new Set(prev);
-      next.add(key);
-      return next;
-    });
+    if (e.shiftKey && document.activeElement === first) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && document.activeElement === last) {
+      e.preventDefault();
+      first.focus();
+    }
   };
 
   if (!results || results.length === 0) {
@@ -94,62 +76,70 @@ function ResultsTable({ results, onExport }) {
     );
   }
 
+  const getGradeColor = (grade = 'D') => {
+    if (grade.startsWith('A')) return '#4CAF50';
+    if (grade.startsWith('B')) return '#2196F3';
+    if (grade.startsWith('C')) return '#FF9800';
+    return '#f44336';
+  };
+
+  const openMessages = (result) => {
+    lastActiveElementRef.current = document.activeElement;
+    const company = result?.company?.name || result?.company?.domain || 'N/A';
+    const text = result?.messages
+      ? buildMessageText(result.messages)
+      : 'No messages generated for this result.';
+    setCopyStatus('');
+    setMessageViewer({ company, text });
+  };
+
+  const copyMessages = async () => {
+    if (!messageViewer?.text) return;
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(messageViewer.text);
+        setCopyStatus('Copied');
+        return;
+      }
+
+      const textarea = document.createElement('textarea');
+      textarea.value = messageViewer.text;
+      textarea.setAttribute('readonly', '');
+      textarea.style.position = 'fixed';
+      textarea.style.opacity = '0';
+      document.body.appendChild(textarea);
+
+      try {
+        textarea.focus();
+        textarea.select();
+        const ok = document.execCommand('copy');
+        setCopyStatus(ok ? 'Copied' : 'Copy failed. Select the text and copy it manually.');
+      } finally {
+        document.body.removeChild(textarea);
+      }
+    } catch (err) {
+      console.error('Failed to copy messages:', err);
+      setCopyStatus('Copy failed. Select the text and copy it manually.');
+    }
+  };
+
   return (
     <div className="results-table">
       <div className="results-header">
-        <h2>📊 Lead Results ({results.length})</h2>
-        <div className="export-buttons">
-          <button className="btn btn-secondary" onClick={() => onExport('csv')}>
-            📥 Export CSV
-          </button>
-          <button className="btn btn-secondary" onClick={() => onExport('airtable')}>
-            📊 Send to Airtable
-          </button>
-          <button className="btn btn-secondary" onClick={() => onExport('hubspot')}>
-            🚀 Send to HubSpot
-          </button>
+        <h2>Lead Results ({results.length})</h2>
+        <div className="results-actions">
+          <button className="btn" onClick={() => onExport('csv')}>Export CSV</button>
+          <button className="btn" onClick={() => onExport('airtable')}>Send to Airtable</button>
+          <button className="btn" onClick={() => onExport('hubspot')}>Send to HubSpot</button>
         </div>
       </div>
 
-      <div className="table-controls">
-        <input
-          type="text"
-          placeholder="🔍 Search by company, contact name, or title..."
-          value={searchTerm}
-          onChange={handleSearchChange}
-          className="search-input"
-        />
-        <div className="pagination-controls">
-          <label>
-            Show
-            <select value={pageSize} onChange={handlePageSizeChange} className="page-size-select">
-              <option value="10">10</option>
-              <option value="25">25</option>
-              <option value="50">50</option>
-            </select>
-            per page
-          </label>
-        </div>
-      </div>
-
-      {filteredResults.length === 0 ? (
-        <div className="table-info">
-          No results match your search.
-          {searchTerm && ` (filtered from ${results.length} total)`}
-        </div>
-      ) : (
-        <div className="table-info">
-          Showing {startIndex + 1}-{Math.min(endIndex, filteredResults.length)} of {filteredResults.length} results
-          {searchTerm && ` (filtered from ${results.length} total)`}
-        </div>
-      )}
-
-      <div className="table-container">
+      <div className="table-wrap">
         <table>
           <thead>
             <tr>
-              <th>Logo</th>
               <th>Company</th>
+              <th>Domain</th>
               <th>Contact</th>
               <th>Title</th>
               <th>Email</th>
@@ -160,76 +150,45 @@ function ResultsTable({ results, onExport }) {
             </tr>
           </thead>
           <tbody>
-            {paginatedResults.map((result, index) => {
-              const rowKey =
-                result.id ||
+            {results.map((result, index) => {
+              const baseKey =
+                result.id ??
                 [
-                  result.company?.domain || 'no-domain',
-                  result.company?.name || 'no-name',
-                  result.contact?.email || 'no-email',
-                  result.contact?.firstName || '',
-                  result.contact?.lastName || ''
+                  result.company?.domain ?? 'no-domain',
+                  result.company?.name ?? 'no-name',
+                  result.contact?.email ?? 'no-email',
+                  result.contact?.firstName ?? '',
+                  result.contact?.lastName ?? '',
                 ].join('|');
-              const domain = result.company?.domain;
-              const showLogo = domain && !logoFailed.has(domain);
+
+              const rowKey = result.id ? baseKey : `${baseKey}|${index}`;
 
               return (
                 <tr key={rowKey}>
-                  <td className="logo-cell">
-                    {showLogo ? (
-                      <img
-                        src={`https://logo.clearbit.com/${result.company.domain}`}
-                        alt={`${result.company?.name || 'Company'} logo`}
-                        className="company-logo"
-                        onError={() => markLogoFailed(domain)}
-                      />
-                    ) : (
-                      <div className="logo-fallback">{getCompanyInitials(result.company?.name)}</div>
-                    )}
+                  <td>{result.company?.name || 'N/A'}</td>
+                  <td>{result.company?.domain || '—'}</td>
+                  <td>{`${result.contact?.firstName || ''} ${result.contact?.lastName || ''}`.trim() || 'N/A'}</td>
+                  <td>{result.contact?.title || 'N/A'}</td>
+                  <td>{result.contact?.email ? <a href={`mailto:${result.contact.email}`}>{result.contact.email}</a> : '—'}</td>
+                  <td>{result.contact?.phone || '—'}</td>
+                  <td>
+                    <div className="score">
+                      <strong>{result.leadScore?.total ?? 0}</strong>
+                      <div className="breakdown">
+                        F:{result.leadScore?.scores?.funding ?? 0} H:{result.leadScore?.scores?.hiring ?? 0} S:{result.leadScore?.scores?.seniority ?? 0} T:{result.leadScore?.scores?.techFit ?? 0}
+                      </div>
+                    </div>
                   </td>
-                <td className="company-cell">
-                  <div className="company-name">{result.company?.name || 'N/A'}</div>
-                  {result.company?.domain && (
-                    <div className="company-domain">{result.company.domain}</div>
-                  )}
-                </td>
-                <td>
-                  {result.contact?.firstName} {result.contact?.lastName}
-                </td>
-                <td>{result.contact?.title || 'N/A'}</td>
-                <td>
-                  {result.contact?.email && (
-                    <a href={`mailto:${result.contact.email}`}>
-                      {result.contact.email}
-                    </a>
-                  )}
-                </td>
-                <td>{result.contact?.phone || 'N/A'}</td>
-                <td className="score-cell">
-                  <div className="score-number">{result.leadScore?.total || 0}</div>
-                  <div className="score-breakdown">
-                    F:{result.leadScore?.scores?.funding || 0} 
-                    H:{result.leadScore?.scores?.hiring || 0}
-                    S:{result.leadScore?.scores?.seniority || 0}
-                    T:{result.leadScore?.scores?.techFit || 0}
-                  </div>
-                </td>
-                <td>
-                  <span 
-                    className="grade-badge"
-                    style={{ background: getGradeColor(result.leadScore?.grade || 'D') }}
-                  >
-                    {result.leadScore?.grade || 'D'}
-                  </span>
-                </td>
-                <td>
-                  <button 
-                    className="btn-small"
-                    onClick={() => showMessages(result)}
-                  >
-                    View Messages
-                  </button>
-                </td>
+                  <td>
+                    <span className="grade" style={{ background: getGradeColor(result.leadScore?.grade) }}>
+                      {result.leadScore?.grade || 'D'}
+                    </span>
+                  </td>
+                  <td>
+                    <button className="btn btn-small" onClick={() => openMessages(result)}>
+                      View Messages
+                    </button>
+                  </td>
                 </tr>
               );
             })}
@@ -237,58 +196,43 @@ function ResultsTable({ results, onExport }) {
         </table>
       </div>
 
-      {totalPages > 1 && (
-        <div className="pagination">
-          <button 
-            className="pagination-btn"
-            onClick={() => goToPage(safeCurrentPage - 1)}
-            disabled={safeCurrentPage === 1}
+      {messageViewer && (
+        <div
+          className="message-viewer-backdrop"
+          onClick={closeViewer}
+        >
+          <div
+            ref={dialogRef}
+            className="message-viewer"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="message-viewer-title"
+            tabIndex={-1}
+            onClick={(e) => e.stopPropagation()}
+            onKeyDown={handleDialogKeyDown}
           >
-            ← Previous
-          </button>
-          <span className="pagination-info">
-            Page {safeCurrentPage} of {totalPages}
-          </span>
-          <button 
-            className="pagination-btn"
-            onClick={() => goToPage(safeCurrentPage + 1)}
-            disabled={safeCurrentPage === totalPages}
-          >
-            Next →
-          </button>
+            <div className="message-viewer-header">
+              <h3 id="message-viewer-title">Messages: {messageViewer.company}</h3>
+              <button
+                ref={closeButtonRef}
+                className="btn btn-small"
+                onClick={closeViewer}
+              >
+                Close
+              </button>
+            </div>
+            <pre className="message-viewer-body">{messageViewer.text}</pre>
+            <div className="message-viewer-actions">
+              <button className="btn" onClick={copyMessages}>
+                Copy
+              </button>
+              {copyStatus && <span className="copy-status">{copyStatus}</span>}
+            </div>
+          </div>
         </div>
       )}
     </div>
   );
-}
-
-function showMessages(result) {
-  if (!result.messages) {
-    alert('No messages generated for this result');
-    return;
-  }
-
-  const messages = result.messages;
-  const messageText = `
-📧 EMAIL
-Subject: ${messages.email?.subject || 'N/A'}
-
-${messages.email?.body || 'N/A'}
-
----
-
-💼 LINKEDIN MESSAGE
-${messages.linkedIn?.message || 'N/A'}
-
----
-
-📨 FOLLOW-UP EMAIL
-Subject: ${messages.followUp?.subject || 'N/A'}
-
-${messages.followUp?.body || 'N/A'}
-  `.trim();
-
-  alert(messageText);
 }
 
 export default ResultsTable;

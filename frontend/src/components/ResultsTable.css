@@ -239,6 +239,66 @@ td a:hover {
   opacity: 0.6;
 }
 
+.message-viewer-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  z-index: 1000;
+}
+
+.message-viewer {
+  background: white;
+  border-radius: 8px;
+  width: 100%;
+  max-width: 880px;
+  max-height: 80vh;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+}
+
+.message-viewer-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+}
+
+.message-viewer-header h3 {
+  margin: 0;
+  color: #333;
+  font-size: 16px;
+}
+
+.message-viewer-body {
+  margin: 12px 0 0;
+  padding: 12px;
+  background: #fafafa;
+  border: 1px solid #eee;
+  border-radius: 6px;
+  overflow: auto;
+  white-space: pre-wrap;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.message-viewer-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.copy-status {
+  font-size: 12px;
+  color: #666;
+}
+
 .pagination-info {
   font-size: 14px;
   color: #555;
