@@ -1,10 +1,15 @@
-import React, { useState, useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import './ResultsTable.css';
 
 function ResultsTable({ results, onExport }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [pageSize, setPageSize] = useState(25);
   const [currentPage, setCurrentPage] = useState(1);
+  const [logoFailed, setLogoFailed] = useState(() => new Set());
+
+  useEffect(() => {
+    setLogoFailed(new Set());
+  }, [results]);
 
   const getGradeColor = (grade) => {
     if (grade.startsWith('A')) return '#4CAF50';
@@ -33,8 +38,9 @@ function ResultsTable({ results, onExport }) {
   }, [results, searchTerm]);
 
   // Paginate filtered results
-  const totalPages = Math.ceil(filteredResults.length / pageSize);
-  const startIndex = (currentPage - 1) * pageSize;
+  const totalPages = Math.max(1, Math.ceil(filteredResults.length / pageSize));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+  const startIndex = (safeCurrentPage - 1) * pageSize;
   const endIndex = startIndex + pageSize;
   const paginatedResults = filteredResults.slice(startIndex, endIndex);
 
@@ -55,12 +61,29 @@ function ResultsTable({ results, onExport }) {
 
   const getCompanyInitials = (name) => {
     if (!name) return '?';
-    return name
-      .split(' ')
+
+    const words = name
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean);
+
+    if (words.length === 0) return '?';
+
+    return words
       .map(word => word[0])
       .join('')
       .toUpperCase()
       .slice(0, 2);
+  };
+
+  const markLogoFailed = (key) => {
+    if (!key) return;
+    setLogoFailed(prev => {
+      if (prev.has(key)) return prev;
+      const next = new Set(prev);
+      next.add(key);
+      return next;
+    });
   };
 
   if (!results || results.length === 0) {
@@ -109,10 +132,17 @@ function ResultsTable({ results, onExport }) {
         </div>
       </div>
 
-      <div className="table-info">
-        Showing {startIndex + 1}-{Math.min(endIndex, filteredResults.length)} of {filteredResults.length} results
-        {searchTerm && ` (filtered from ${results.length} total)`}
-      </div>
+      {filteredResults.length === 0 ? (
+        <div className="table-info">
+          No results match your search.
+          {searchTerm && ` (filtered from ${results.length} total)`}
+        </div>
+      ) : (
+        <div className="table-info">
+          Showing {startIndex + 1}-{Math.min(endIndex, filteredResults.length)} of {filteredResults.length} results
+          {searchTerm && ` (filtered from ${results.length} total)`}
+        </div>
+      )}
 
       <div className="table-container">
         <table>
@@ -130,24 +160,33 @@ function ResultsTable({ results, onExport }) {
             </tr>
           </thead>
           <tbody>
-            {paginatedResults.map((result, index) => (
-              <tr key={result.id || index}>
-                <td className="logo-cell">
-                  {result.company?.domain ? (
-                    <img
-                      src={`https://logo.clearbit.com/${result.company.domain}`}
-                      alt={`${result.company.name} logo`}
-                      className="company-logo"
-                      onError={(e) => {
-                        e.target.style.display = 'none';
-                        e.target.nextSibling.style.display = 'flex';
-                      }}
-                    />
-                  ) : null}
-                  <div className="logo-fallback" style={{ display: result.company?.domain ? 'none' : 'flex' }}>
-                    {getCompanyInitials(result.company?.name)}
-                  </div>
-                </td>
+            {paginatedResults.map((result, index) => {
+              const rowKey =
+                result.id ||
+                [
+                  result.company?.domain || 'no-domain',
+                  result.company?.name || 'no-name',
+                  result.contact?.email || 'no-email',
+                  result.contact?.firstName || '',
+                  result.contact?.lastName || ''
+                ].join('|');
+              const domain = result.company?.domain;
+              const showLogo = domain && !logoFailed.has(domain);
+
+              return (
+                <tr key={rowKey}>
+                  <td className="logo-cell">
+                    {showLogo ? (
+                      <img
+                        src={`https://logo.clearbit.com/${result.company.domain}`}
+                        alt={`${result.company?.name || 'Company'} logo`}
+                        className="company-logo"
+                        onError={() => markLogoFailed(domain)}
+                      />
+                    ) : (
+                      <div className="logo-fallback">{getCompanyInitials(result.company?.name)}</div>
+                    )}
+                  </td>
                 <td className="company-cell">
                   <div className="company-name">{result.company?.name || 'N/A'}</div>
                   {result.company?.domain && (
@@ -191,8 +230,9 @@ function ResultsTable({ results, onExport }) {
                     View Messages
                   </button>
                 </td>
-              </tr>
-            ))}
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
@@ -201,18 +241,18 @@ function ResultsTable({ results, onExport }) {
         <div className="pagination">
           <button 
             className="pagination-btn"
-            onClick={() => goToPage(currentPage - 1)}
-            disabled={currentPage === 1}
+            onClick={() => goToPage(safeCurrentPage - 1)}
+            disabled={safeCurrentPage === 1}
           >
             ← Previous
           </button>
           <span className="pagination-info">
-            Page {currentPage} of {totalPages}
+            Page {safeCurrentPage} of {totalPages}
           </span>
           <button 
             className="pagination-btn"
-            onClick={() => goToPage(currentPage + 1)}
-            disabled={currentPage === totalPages}
+            onClick={() => goToPage(safeCurrentPage + 1)}
+            disabled={safeCurrentPage === totalPages}
           >
             Next →
           </button>
