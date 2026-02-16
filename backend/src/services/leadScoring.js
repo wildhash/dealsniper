@@ -7,14 +7,11 @@
  * - Tech fit
  */
 
+const config = require('../config/scoringConfig');
+
 class LeadScoringService {
   constructor() {
-    this.weights = {
-      funding: 30,
-      hiring: 25,
-      seniority: 25,
-      techFit: 20
-    };
+    this.weights = config.weights;
   }
 
   /**
@@ -44,51 +41,47 @@ class LeadScoringService {
       return sum + (score * this.weights[key] / 100);
     }, 0);
 
+    const roundedTotal = Math.round(total);
+
     return {
       scores,
-      total: Math.round(total),
-      grade: this.getGrade(total)
+      total: roundedTotal,
+      grade: this.getGrade(roundedTotal)
     };
   }
 
   scoreFunding(hasFunding, amount) {
     if (!hasFunding) return 0;
     
-    // Score based on funding amount (in millions)
-    if (amount >= 50) return 100;
-    if (amount >= 20) return 85;
-    if (amount >= 10) return 70;
-    if (amount >= 5) return 60;
-    if (amount > 0) return 50;
-    return 40; // Has funding but amount unknown
+    // Score based on funding amount (in millions) using config tiers
+    for (const tier of config.fundingTiers) {
+      if (amount >= tier.min) {
+        return tier.score;
+      }
+    }
+    return 40; // Fallback (shouldn't reach here)
   }
 
   scoreHiring(isHiring, count) {
-    if (!isHiring) return 20; // Base score
+    if (!isHiring) return config.notHiringScore;
     
-    // Score based on number of open positions
-    if (count >= 20) return 100;
-    if (count >= 10) return 85;
-    if (count >= 5) return 70;
-    if (count >= 2) return 60;
-    if (count >= 1) return 50;
-    return 40;
+    // Score based on number of open positions using config tiers
+    for (const tier of config.hiringTiers) {
+      if (count >= tier.min) {
+        return tier.score;
+      }
+    }
+    return 40; // Fallback (shouldn't reach here)
   }
 
   scoreSeniority(level) {
-    const seniorityScores = {
-      'exec': 100,      // C-level, VP
-      'senior': 80,     // Director, Senior Manager
-      'mid': 60,        // Manager, Senior IC
-      'junior': 40,     // Entry level
-      'unknown': 30
-    };
-    return seniorityScores[level.toLowerCase()] || seniorityScores['unknown'];
+    const normalizedLevel = level.toLowerCase();
+    return config.seniorityScores[normalizedLevel] || config.seniorityScores['unknown'];
   }
 
   scoreTechFit(techStack, targetTech) {
-    if (!techStack || techStack.length === 0) return 30; // No data
-    if (!targetTech || targetTech.length === 0) return 50; // No requirements
+    if (!techStack || techStack.length === 0) return config.techFitFallbacks.noTechStack;
+    if (!targetTech || targetTech.length === 0) return config.techFitFallbacks.noRequirements;
     
     // Calculate match percentage
     const matches = techStack.filter(tech => 
@@ -100,21 +93,22 @@ class LeadScoringService {
     
     const matchRate = matches / targetTech.length;
     
-    if (matchRate >= 0.8) return 100;
-    if (matchRate >= 0.6) return 85;
-    if (matchRate >= 0.4) return 70;
-    if (matchRate >= 0.2) return 55;
-    return 40;
+    // Find appropriate score using config thresholds
+    for (const threshold of config.techFitThresholds) {
+      if (matchRate >= threshold.minRate) {
+        return threshold.score;
+      }
+    }
+    return 40; // Fallback (shouldn't reach here)
   }
 
   getGrade(score) {
-    if (score >= 90) return 'A+';
-    if (score >= 80) return 'A';
-    if (score >= 70) return 'B+';
-    if (score >= 60) return 'B';
-    if (score >= 50) return 'C+';
-    if (score >= 40) return 'C';
-    return 'D';
+    for (const threshold of config.gradeThresholds) {
+      if (score >= threshold.min) {
+        return threshold.grade;
+      }
+    }
+    return 'D'; // Fallback (shouldn't reach here)
   }
 }
 
