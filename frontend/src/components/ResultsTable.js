@@ -65,8 +65,8 @@ function ResultsTable({ results, onExport }) {
             </tr>
           </thead>
           <tbody>
-            {results.map((result) => (
-              <tr key={result.id}>
+            {results.map((result, index) => (
+              <tr key={result.id || `result-${index}-${result.company?.domain || 'unknown'}`}>
                 <td>{result.company?.name || 'N/A'}</td>
                 <td>{result.company?.domain || '—'}</td>
                 <td>{`${result.contact?.firstName || ''} ${result.contact?.lastName || ''}`.trim() || 'N/A'}</td>

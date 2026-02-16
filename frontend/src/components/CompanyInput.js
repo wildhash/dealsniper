@@ -40,8 +40,9 @@ function CompanyInput({ onSubmit }) {
 
       <form onSubmit={handleSubmit}>
         <div className="form-group">
-          <label>Ideal Customer Profile (ICP)</label>
+          <label htmlFor="icp">Ideal Customer Profile (ICP)</label>
           <input
+            id="icp"
             value={icp}
             onChange={(e) => setIcp(e.target.value)}
             placeholder="e.g., B2B SaaS companies with 50-500 employees"
@@ -50,8 +51,9 @@ function CompanyInput({ onSubmit }) {
         </div>
 
         <div className="form-group">
-          <label>Region</label>
+          <label htmlFor="region">Region</label>
           <input
+            id="region"
             value={region}
             onChange={(e) => setRegion(e.target.value)}
             placeholder="e.g., North America, EU, APAC"
@@ -60,8 +62,9 @@ function CompanyInput({ onSubmit }) {
         </div>
 
         <div className="form-group">
-          <label>Target Tech Stack (comma-separated)</label>
+          <label htmlFor="targetTech">Target Tech Stack (comma-separated)</label>
           <input
+            id="targetTech"
             value={targetTech}
             onChange={(e) => setTargetTech(e.target.value)}
             placeholder="e.g., React, Node.js, AWS"
@@ -69,8 +72,9 @@ function CompanyInput({ onSubmit }) {
         </div>
 
         <div className="form-group">
-          <label>Companies (one per line)</label>
+          <label htmlFor="companies">Companies (one per line)</label>
           <textarea
+            id="companies"
             value={companiesText}
             onChange={(e) => setCompaniesText(e.target.value)}
             placeholder={[
