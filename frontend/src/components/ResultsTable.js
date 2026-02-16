@@ -1,14 +1,15 @@
-import React from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import './ResultsTable.css';
 
 function ResultsTable({ results, onExport }) {
-  if (!results || results.length === 0) {
-    return (
-      <div className="results-table empty">
-        <p>No results yet. Add companies and process them to see results here.</p>
-      </div>
-    );
-  }
+  const [searchTerm, setSearchTerm] = useState('');
+  const [pageSize, setPageSize] = useState(25);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [logoFailed, setLogoFailed] = useState(() => new Set());
+
+  useEffect(() => {
+    setLogoFailed(new Set());
+  }, [results]);
 
   const getGradeColor = (grade) => {
     if (grade.startsWith('A')) return '#4CAF50';
@@ -16,6 +17,82 @@ function ResultsTable({ results, onExport }) {
     if (grade.startsWith('C')) return '#FF9800';
     return '#f44336';
   };
+
+  // Filter results based on search term
+  const filteredResults = useMemo(() => {
+    if (!results || results.length === 0) return [];
+    if (!searchTerm) return results;
+    
+    const lowerSearch = searchTerm.toLowerCase();
+    return results.filter(result => {
+      const companyName = result.company?.name?.toLowerCase() || '';
+      const companyDomain = result.company?.domain?.toLowerCase() || '';
+      const contactName = `${result.contact?.firstName || ''} ${result.contact?.lastName || ''}`.toLowerCase();
+      const contactTitle = result.contact?.title?.toLowerCase() || '';
+      
+      return companyName.includes(lowerSearch) ||
+             companyDomain.includes(lowerSearch) ||
+             contactName.includes(lowerSearch) ||
+             contactTitle.includes(lowerSearch);
+    });
+  }, [results, searchTerm]);
+
+  // Paginate filtered results
+  const totalPages = Math.max(1, Math.ceil(filteredResults.length / pageSize));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+  const startIndex = (safeCurrentPage - 1) * pageSize;
+  const endIndex = startIndex + pageSize;
+  const paginatedResults = filteredResults.slice(startIndex, endIndex);
+
+  // Reset to page 1 when search term or page size changes
+  const handleSearchChange = (e) => {
+    setSearchTerm(e.target.value);
+    setCurrentPage(1);
+  };
+
+  const handlePageSizeChange = (e) => {
+    setPageSize(Number(e.target.value));
+    setCurrentPage(1);
+  };
+
+  const goToPage = (page) => {
+    setCurrentPage(Math.max(1, Math.min(page, totalPages)));
+  };
+
+  const getCompanyInitials = (name) => {
+    if (!name) return '?';
+
+    const words = name
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean);
+
+    if (words.length === 0) return '?';
+
+    return words
+      .map(word => word[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2);
+  };
+
+  const markLogoFailed = (key) => {
+    if (!key) return;
+    setLogoFailed(prev => {
+      if (prev.has(key)) return prev;
+      const next = new Set(prev);
+      next.add(key);
+      return next;
+    });
+  };
+
+  if (!results || results.length === 0) {
+    return (
+      <div className="results-table empty">
+        <p>No results yet. Add companies and process them to see results here.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="results-table">
@@ -34,10 +111,44 @@ function ResultsTable({ results, onExport }) {
         </div>
       </div>
 
+      <div className="table-controls">
+        <input
+          type="text"
+          placeholder="🔍 Search by company, contact name, or title..."
+          value={searchTerm}
+          onChange={handleSearchChange}
+          className="search-input"
+        />
+        <div className="pagination-controls">
+          <label>
+            Show
+            <select value={pageSize} onChange={handlePageSizeChange} className="page-size-select">
+              <option value="10">10</option>
+              <option value="25">25</option>
+              <option value="50">50</option>
+            </select>
+            per page
+          </label>
+        </div>
+      </div>
+
+      {filteredResults.length === 0 ? (
+        <div className="table-info">
+          No results match your search.
+          {searchTerm && ` (filtered from ${results.length} total)`}
+        </div>
+      ) : (
+        <div className="table-info">
+          Showing {startIndex + 1}-{Math.min(endIndex, filteredResults.length)} of {filteredResults.length} results
+          {searchTerm && ` (filtered from ${results.length} total)`}
+        </div>
+      )}
+
       <div className="table-container">
         <table>
           <thead>
             <tr>
+              <th>Logo</th>
               <th>Company</th>
               <th>Contact</th>
               <th>Title</th>
@@ -49,8 +160,33 @@ function ResultsTable({ results, onExport }) {
             </tr>
           </thead>
           <tbody>
-            {results.map((result, index) => (
-              <tr key={result.id || index}>
+            {paginatedResults.map((result, index) => {
+              const rowKey =
+                result.id ||
+                [
+                  result.company?.domain || 'no-domain',
+                  result.company?.name || 'no-name',
+                  result.contact?.email || 'no-email',
+                  result.contact?.firstName || '',
+                  result.contact?.lastName || ''
+                ].join('|');
+              const domain = result.company?.domain;
+              const showLogo = domain && !logoFailed.has(domain);
+
+              return (
+                <tr key={rowKey}>
+                  <td className="logo-cell">
+                    {showLogo ? (
+                      <img
+                        src={`https://logo.clearbit.com/${result.company.domain}`}
+                        alt={`${result.company?.name || 'Company'} logo`}
+                        className="company-logo"
+                        onError={() => markLogoFailed(domain)}
+                      />
+                    ) : (
+                      <div className="logo-fallback">{getCompanyInitials(result.company?.name)}</div>
+                    )}
+                  </td>
                 <td className="company-cell">
                   <div className="company-name">{result.company?.name || 'N/A'}</div>
                   {result.company?.domain && (
@@ -94,11 +230,34 @@ function ResultsTable({ results, onExport }) {
                     View Messages
                   </button>
                 </td>
-              </tr>
-            ))}
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
+
+      {totalPages > 1 && (
+        <div className="pagination">
+          <button 
+            className="pagination-btn"
+            onClick={() => goToPage(safeCurrentPage - 1)}
+            disabled={safeCurrentPage === 1}
+          >
+            ← Previous
+          </button>
+          <span className="pagination-info">
+            Page {safeCurrentPage} of {totalPages}
+          </span>
+          <button 
+            className="pagination-btn"
+            onClick={() => goToPage(safeCurrentPage + 1)}
+            disabled={safeCurrentPage === totalPages}
+          >
+            Next →
+          </button>
+        </div>
+      )}
     </div>
   );
 }
