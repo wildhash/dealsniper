@@ -117,7 +117,7 @@ router.post('/process', async (req, res) => {
             contact,
             company,
             leadScore,
-            triggers: this.extractTriggers(company, leadScore)
+            triggers: extractTriggers(company, leadScore)
           });
 
           // Store result
