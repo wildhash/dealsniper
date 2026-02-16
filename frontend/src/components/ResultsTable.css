@@ -40,6 +40,48 @@
   background: #1976D2;
 }
 
+.table-controls {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 16px;
+  align-items: center;
+}
+
+.search-input {
+  flex: 1;
+  padding: 10px 16px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: #2196F3;
+}
+
+.pagination-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: #555;
+}
+
+.page-size-select {
+  margin: 0 8px;
+  padding: 6px 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.table-info {
+  font-size: 14px;
+  color: #666;
+  margin-bottom: 12px;
+}
+
 .table-container {
   overflow-x: auto;
 }
@@ -74,6 +116,31 @@ tbody tr:hover {
 td {
   padding: 12px;
   vertical-align: middle;
+}
+
+.logo-cell {
+  width: 48px;
+  text-align: center;
+}
+
+.company-logo {
+  width: 40px;
+  height: 40px;
+  border-radius: 4px;
+  object-fit: contain;
+}
+
+.logo-fallback {
+  width: 40px;
+  height: 40px;
+  border-radius: 4px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 14px;
 }
 
 .company-cell {
@@ -139,4 +206,41 @@ td a:hover {
 .btn-small:hover {
   background: #7B1FA2;
   transform: translateY(-1px);
+}
+
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 16px;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid #eee;
+}
+
+.pagination-btn {
+  padding: 8px 16px;
+  background: #2196F3;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s;
+}
+
+.pagination-btn:hover:not(:disabled) {
+  background: #1976D2;
+}
+
+.pagination-btn:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.pagination-info {
+  font-size: 14px;
+  color: #555;
+  font-weight: 500;
 }

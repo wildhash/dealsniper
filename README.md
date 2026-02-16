@@ -2,6 +2,14 @@
 
 DealSniper is a powerful lead enrichment and outreach platform that helps sales teams find, score, and reach out to their ideal customers.
 
+## Recent Updates
+
+**✨ Latest improvements:**
+- 🎯 **Pagination & Search**: Results table now supports client-side pagination (10/25/50 per page) and real-time search across company names, contacts, and titles
+- 🖼️ **Company Logos**: Visual branding with Clearbit logo integration and initials fallback
+- ⚙️ **Configurable Scoring**: Centralized scoring configuration in `backend/src/config/scoringConfig.js` for easy tuning
+- ✅ **Test Coverage**: Comprehensive Jest test suite for lead scoring service (45 tests)
+
 ## Features
 
 - **ICP Definition**: Define your Ideal Customer Profile with keywords, region, and tech stack requirements
@@ -28,12 +36,14 @@ DealSniper is a powerful lead enrichment and outreach platform that helps sales 
 - RESTful API architecture
 - In-memory data store (easily replaceable with database)
 - Integration with FullEnrich and OpenAI
+- Jest for testing
 
 ### Frontend
 - React
 - Modern, responsive UI
 - Real-time processing status
-- Interactive results table
+- Interactive results table with pagination and search
+- Clearbit logo integration
 
 ## Getting Started
 
@@ -102,6 +112,29 @@ npm start
 ```
 
 The UI will open at `http://localhost:3000`
+
+### Running Tests
+
+Backend tests are included for lead scoring logic:
+
+```bash
+cd backend
+npm test
+```
+
+To run tests in watch mode:
+
+```bash
+npm run test:watch
+```
+
+The test suite covers:
+- Funding tier boundaries
+- Hiring tier boundaries  
+- Seniority level mapping
+- Tech fit match thresholds
+- Grade assignment
+- Weighted score calculations
 
 ## Usage Guide
 
@@ -254,12 +287,25 @@ Send to HubSpot only
 
 ## Lead Scoring Algorithm
 
-DealSniper uses a weighted scoring system:
+DealSniper uses a weighted scoring system with configurable thresholds.
 
-- **Funding (30%)**: Recent funding events increase score
-- **Hiring (25%)**: Active hiring indicates growth
-- **Seniority (25%)**: Higher seniority = higher score
-- **Tech Fit (20%)**: Match between their tech stack and your target
+### Configuration
+
+All scoring parameters are centralized in `backend/src/config/scoringConfig.js` for easy tuning:
+
+- **Weights**: Adjust the relative importance of each factor (must sum to 100)
+  - Funding (30%): Recent funding events increase score
+  - Hiring (25%): Active hiring indicates growth
+  - Seniority (25%): Higher seniority = higher score
+  - Tech Fit (20%): Match between their tech stack and your target
+
+- **Funding Tiers**: Configurable amount thresholds (in millions)
+- **Hiring Tiers**: Adjustable open position counts
+- **Seniority Scores**: Customizable role-level scoring
+- **Tech Fit Thresholds**: Match rate percentages and scores
+- **Grade Thresholds**: Letter grade boundaries for segmentation
+
+### Scoring Details
 
 Score ranges:
 - 90-100: Grade A+ (Hot leads)
@@ -328,10 +374,14 @@ Create new service files in `backend/src/services/`:
 
 ### Custom Lead Scoring
 
-Modify `backend/src/services/leadScoring.js` to adjust:
-- Weights for each factor
-- Scoring algorithms
-- Grade thresholds
+Scoring is fully configurable via `backend/src/config/scoringConfig.js`:
+
+1. **Adjust Weights**: Change the relative importance of each factor (funding, hiring, seniority, techFit)
+2. **Modify Tiers**: Update funding amount or hiring count thresholds
+3. **Tune Thresholds**: Adjust tech fit match rates or grade boundaries
+4. **Add Comments**: Document why you chose specific values for your use case
+
+The scoring service will automatically use your updated configuration without code changes.
 
 ## Support
 
