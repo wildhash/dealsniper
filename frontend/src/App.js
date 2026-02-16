@@ -1,17 +1,40 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import CompanyInput from './components/CompanyInput';
 import ResultsTable from './components/ResultsTable';
 import ProcessingStatus from './components/ProcessingStatus';
 import apiService from './services/api';
 import './App.css';
 
+const STATUS_RESET_DELAY_MS = 3000;
+
 function App() {
   const [results, setResults] = useState([]);
   const [status, setStatus] = useState('idle');
   const [progress, setProgress] = useState('');
+  const statusResetTimeoutRef = useRef(null);
+
+  const clearStatusResetTimeout = () => {
+    if (statusResetTimeoutRef.current) {
+      clearTimeout(statusResetTimeoutRef.current);
+      statusResetTimeoutRef.current = null;
+    }
+  };
+
+  const scheduleStatusReset = () => {
+    clearStatusResetTimeout();
+    statusResetTimeoutRef.current = setTimeout(() => {
+      statusResetTimeoutRef.current = null;
+      setStatus('idle');
+    }, STATUS_RESET_DELAY_MS);
+  };
+
+  useEffect(() => {
+    return () => clearStatusResetTimeout();
+  }, []);
 
   const handleCompanySubmit = async (data) => {
     try {
+      clearStatusResetTimeout();
       setStatus('processing');
       setProgress('Adding companies...');
 
@@ -24,13 +47,13 @@ function App() {
       setResults(processResponse.results || []);
       setStatus('success');
       setProgress('');
-      setTimeout(() => setStatus('idle'), 2000);
+      scheduleStatusReset();
     } catch (error) {
       console.error('Error processing companies:', error);
       setStatus('error');
       setProgress('');
       alert(`Error: ${error?.message || 'Unknown error'}`);
-      setTimeout(() => setStatus('idle'), 3000);
+      scheduleStatusReset();
     }
   };
 

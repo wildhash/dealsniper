@@ -1,6 +1,18 @@
 import React, { useState } from 'react';
 import './CompanyInput.css';
 
+const parseNumber = (s) => {
+  if (!s) return undefined;
+  const v = Number.parseFloat(s);
+  return Number.isFinite(v) ? v : undefined;
+};
+
+const parseIntSafe = (s) => {
+  if (!s) return undefined;
+  const v = Number.parseInt(s, 10);
+  return Number.isFinite(v) ? v : undefined;
+};
+
 function CompanyInput({ onSubmit }) {
   const [icp, setIcp] = useState('');
   const [region, setRegion] = useState('');
@@ -19,9 +31,9 @@ function CompanyInput({ onSubmit }) {
         domain: parts[1] || undefined,
         description: parts[2] || undefined,
         hasFunding: (parts[3] || '').toLowerCase() === 'yes',
-        fundingAmount: parseFloat(parts[4]) || 0,
+        fundingAmount: parseNumber(parts[4]),
         isHiring: (parts[5] || '').toLowerCase() === 'yes',
-        hiringCount: parseInt(parts[6], 10) || 0,
+        hiringCount: parseIntSafe(parts[6]),
         techStack: (parts[7] ? parts[7].split(';') : []).map(t => t.trim()).filter(Boolean),
       };
     });
