@@ -3,51 +3,45 @@ import './CompanyInput.css';
 
 function CompanyInput({ onSubmit }) {
   const [icp, setIcp] = useState('');
-  const [keywords, setKeywords] = useState('');
   const [region, setRegion] = useState('');
   const [targetTech, setTargetTech] = useState('');
   const [companiesText, setCompaniesText] = useState('');
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    
-    // Parse companies from text (one per line)
-    const companyLines = companiesText.split('\n').filter(line => line.trim());
-    
+
+    const companyLines = companiesText.split('\n').map(l => l.trim()).filter(Boolean);
+
     const companies = companyLines.map((line, index) => {
       const parts = line.split(',').map(p => p.trim());
       return {
         name: parts[0] || `Company ${index + 1}`,
         domain: parts[1] || undefined,
         description: parts[2] || undefined,
-        hasFunding: parts[3]?.toLowerCase() === 'yes',
+        hasFunding: (parts[3] || '').toLowerCase() === 'yes',
         fundingAmount: parseFloat(parts[4]) || 0,
-        isHiring: parts[5]?.toLowerCase() === 'yes',
-        hiringCount: parseInt(parts[6]) || 0,
-        techStack: parts[7]?.split(';').map(t => t.trim()) || []
+        isHiring: (parts[5] || '').toLowerCase() === 'yes',
+        hiringCount: parseInt(parts[6], 10) || 0,
+        techStack: (parts[7] ? parts[7].split(';') : []).map(t => t.trim()).filter(Boolean),
       };
     });
 
-    const data = {
+    onSubmit({
       companies,
       icp: icp.trim(),
       region: region.trim(),
-      targetTech: targetTech.split(',').map(t => t.trim()).filter(t => t)
-    };
-
-    onSubmit(data);
+      targetTech: targetTech.split(',').map(t => t.trim()).filter(Boolean),
+    });
   };
 
   return (
     <div className="company-input">
-      <h2>🎯 Define Your ICP & Add Companies</h2>
-      
+      <h2>Define ICP & Add Companies</h2>
+
       <form onSubmit={handleSubmit}>
         <div className="form-group">
-          <label htmlFor="icp">Ideal Customer Profile (ICP)</label>
+          <label>Ideal Customer Profile (ICP)</label>
           <input
-            type="text"
-            id="icp"
             value={icp}
             onChange={(e) => setIcp(e.target.value)}
             placeholder="e.g., B2B SaaS companies with 50-500 employees"
@@ -56,21 +50,8 @@ function CompanyInput({ onSubmit }) {
         </div>
 
         <div className="form-group">
-          <label htmlFor="keywords">Keywords</label>
+          <label>Region</label>
           <input
-            type="text"
-            id="keywords"
-            value={keywords}
-            onChange={(e) => setKeywords(e.target.value)}
-            placeholder="e.g., sales automation, CRM, outbound"
-          />
-        </div>
-
-        <div className="form-group">
-          <label htmlFor="region">Region</label>
-          <input
-            type="text"
-            id="region"
             value={region}
             onChange={(e) => setRegion(e.target.value)}
             placeholder="e.g., North America, EU, APAC"
@@ -79,10 +60,8 @@ function CompanyInput({ onSubmit }) {
         </div>
 
         <div className="form-group">
-          <label htmlFor="targetTech">Target Tech Stack (comma-separated)</label>
+          <label>Target Tech Stack (comma-separated)</label>
           <input
-            type="text"
-            id="targetTech"
             value={targetTech}
             onChange={(e) => setTargetTech(e.target.value)}
             placeholder="e.g., React, Node.js, AWS"
@@ -90,20 +69,20 @@ function CompanyInput({ onSubmit }) {
         </div>
 
         <div className="form-group">
-          <label htmlFor="companies">
-            Companies (one per line, format: Name, Domain, Description, HasFunding, FundingAmount, IsHiring, HiringCount, TechStack)
-          </label>
+          <label>Companies (one per line)</label>
           <textarea
-            id="companies"
             value={companiesText}
             onChange={(e) => setCompaniesText(e.target.value)}
-            placeholder="Acme Corp, acme.com, Sales software, yes, 10, yes, 5, React;Node.js&#10;Beta Inc, beta.io, Marketing automation, no, 0, yes, 3, Python;Django"
-            rows="8"
+            placeholder={[
+              'Simple: Acme Corp',
+              'Full: Acme Corp, acme.com, Sales software, yes, 10, yes, 5, React;Node.js',
+              'Full: Beta Inc, beta.io, Marketing automation, no, 0, yes, 3, Python;Django',
+            ].join('\n')}
+            rows={8}
             required
           />
           <small className="help-text">
-            💡 Simple format: Just company name, or full details separated by commas.
-            Example: "Acme Corp, acme.com, Sales software, yes, 10, yes, 5, React;Node.js"
+            Full format: Name, Domain, Description, HasFunding(yes/no), FundingAmount(M), IsHiring(yes/no), HiringCount, TechStack(; separated)
           </small>
         </div>
 

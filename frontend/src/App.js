@@ -15,29 +15,21 @@ function App() {
       setStatus('processing');
       setProgress('Adding companies...');
 
-      // Add companies
       const addResponse = await apiService.addCompanies(data);
-      console.log('Companies added:', addResponse);
-
       setProgress(`Processing ${addResponse.companies.length} companies...`);
 
-      // Process companies (enrich, score, generate messages)
-      const companyIds = addResponse.companies.map(c => c.id);
+      const companyIds = addResponse.companies.map((c) => c.id);
       const processResponse = await apiService.processCompanies(companyIds);
-      
-      console.log('Processing complete:', processResponse);
 
-      setResults(processResponse.results);
+      setResults(processResponse.results || []);
       setStatus('success');
       setProgress('');
-
-      setTimeout(() => setStatus('idle'), 3000);
+      setTimeout(() => setStatus('idle'), 2000);
     } catch (error) {
       console.error('Error processing companies:', error);
       setStatus('error');
       setProgress('');
-      alert(`Error: ${error.message}`);
-      
+      alert(`Error: ${error?.message || 'Unknown error'}`);
       setTimeout(() => setStatus('idle'), 3000);
     }
   };
@@ -54,7 +46,6 @@ function App() {
         a.click();
         document.body.removeChild(a);
         window.URL.revokeObjectURL(url);
-        alert('CSV downloaded successfully!');
       } else if (type === 'airtable') {
         const response = await apiService.sendToAirtable();
         alert(response.message || 'Sent to Airtable successfully!');
@@ -64,31 +55,28 @@ function App() {
       }
     } catch (error) {
       console.error('Export error:', error);
-      alert(`Export error: ${error.message}`);
+      alert(`Export error: ${error?.message || 'Unknown error'}`);
     }
   };
 
   return (
     <div className="App">
       <header className="app-header">
-        <h1>🎯 DealSniper</h1>
-        <p className="tagline">Smart Lead Enrichment & Outreach Platform</p>
+        <h1>DealSniper</h1>
+        <p className="tagline">Revenue-before-intent lead enrichment, scoring, and outreach</p>
       </header>
 
       <main className="app-content">
         <ProcessingStatus status={status} progress={progress} />
-        
         <CompanyInput onSubmit={handleCompanySubmit} />
-        
         <ResultsTable results={results} onExport={handleExport} />
       </main>
 
       <footer className="app-footer">
         <p>
-          💡 DealSniper helps you find, enrich, score, and reach out to your ideal customers.
-          <br />
-          <small>Built with React, Node.js, Express, FullEnrich, and OpenAI</small>
+          Built with React + Node/Express • FullEnrich enrichment • OpenAI message generation
         </p>
+        <small>Hackathon demo build</small>
       </footer>
     </div>
   );
